@@ -1,6 +1,5 @@
 const db = require('../models') ;
 
-// Create a new student
 const createStudent = async (req, res) => {
   try {
     let { firstName, lastName, age, standard, division, marks }  = req.body;
@@ -10,6 +9,8 @@ const createStudent = async (req, res) => {
         firstName, lastName, age, standard, division
     })
 
+    // console.log("This is the studentData", student)
+
     if (marks && marks.length > 0) {
         const marksData = marks.map(mark => ({
             studentId: student.id, // Utilizing the foreign key
@@ -17,21 +18,34 @@ const createStudent = async (req, res) => {
             score: mark.score
         }));
 
-        await db.Marks.bulkCreate(marksData);
+        let studentMarksData = await db.Marks.bulkCreate(marksData);
+
+        // console.log("Student Marks Data", studentMarksData);
+
     }
 
-    res.status(201).json(student);
+    let studentWithMarks = await db.Students.findOne(
+      {
+        where:{
+          id: student.id
+        },
+        include:[{model:db.Marks, as:'marks'}]
+      }
+    );
+
+    // console.log("Student with marks", studentWithMarks)
+
+    res.status(201).json(studentWithMarks);
     
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 };
 
-// Get all students with pagination
 const getAllStudents = async (req, res) => {
   try {
     let page = parseInt(req.query.page) || 1;
-    let recordsPerPage = 10;
+    let recordsPerPage = parseInt(req.query.limit) || 10;
     let offset = (page-1)* recordsPerPage;
 
     // const { rows, count } = await Student.findAndCountAll({
@@ -42,25 +56,24 @@ const getAllStudents = async (req, res) => {
 
     let getAllStudentData = await db.Students.findAll({
             limit : recordsPerPage,
-            offset : offset
+            offset : offset,
+            include: [{ model: db.Marks, as: 'marks' }], 
         })
     
-    let getAllStudentCount  = await db.Students.count({});
+    let getAllStudentCount  = await db.Students.count();
+
+    let totalPage = Math.ceil(getAllStudentCount/recordsPerPage)
 
     return res.status(200).json({
             getAllStudentCount,
-            getAllStudentData
+            getAllStudentData,
+            pagination:{
+              totalPage,
+              currentPage: page,
+              pageSize: recordsPerPage
+            }
     })
 
-
-    // res.json({
-    //   data: rows,
-    //   pagination: {
-    //     totalRecords: count,
-    //     currentPage: parseInt(page),
-    //     totalPages: Math.ceil(count / limit),
-    //   },
-    // });
   } catch (error) {
 
     return res.status(500).json({ error: error.message });
@@ -68,14 +81,13 @@ const getAllStudents = async (req, res) => {
   }
 };
 
-// Get a student by ID (with marks)
 const getStudentById = async (req, res) => {
   try {
 
     let studentId = req.params.id;
 
     let studentData = await db.Students.findByPk(studentId, {
-      // include: [{ model: db.Mark, as: 'marks' }],
+      include: [{ model: db.Marks, as: 'marks' }],
     });
 
     if (!studentData){
@@ -91,33 +103,65 @@ const getStudentById = async (req, res) => {
   }
 };
 
-// Update a student by ID
 const updateStudent = async (req, res) => {
   try {
 
     let studentId = req.params.id;
 
-    let studentData = await db.Students.findByPk(studentId);
+    let studentData = await db.Students.findByPk(studentId, {
+      include: [{ model: db.Marks, as: 'marks' }],
+    });
 
     if(!studentData){
         return res.status(404).json({error:"Student data not found"})
     }
 
-    let newStudentData = req.body;
+    // let newStudentData = req.body;
+    let { firstName, lastName, age, standard, division, marks } = req.body;
 
-    let updatedStudentData = {...studentData, ...newStudentData}
+    // let updatedStudentData = {...studentData, ...newStudentData}
 
-    let newUpdatedStudentData = await db.Students.update( updatedStudentData, {
+    let newUpdatedStudentData = await db.Students.update( 
+      { firstName, lastName, age, standard, division}, {
         where:{
             id : studentId
         }
     } )
 
+    if(marks && marks.length>0){
+      for(let mark of marks){
+        let existingMarks = await db.Marks.findOne({
+          where:{ studentId,
+            subject: mark.subject
+          },
+        });
+
+        if(existingMarks){
+          let updateScore = await db.Marks.update(
+            { score: mark.score },
+            { where: {id:existingMarks.id}}
+          );
+        }
+        else{
+          let createMarksData = await db.Marks.create({
+            studentId,
+            subject: mark.subject,
+            score: mark.score
+          });
+        }
+      }
+    }
+
+    let updatedStudentsData = await db.Students.findByPk(studentId,{
+      include: [{ model: db.Marks, as: 'marks' }],
+    });
+
     // const [updated] = await db.Student.update(updatedData, { where: { id: studentId  } });
     // if (!updated) return res.status(404).json({ message: 'Student not found' });
     // res.json({ message: 'Student updated successfully' });
 
-    return res.status(200).json({newUpdatedStudentData});
+    // return res.status(200).json({newUpdatedStudentData});
+    return res.status(200).json({updatedStudentsData});
 
   } catch (error) {
 
@@ -126,11 +170,12 @@ const updateStudent = async (req, res) => {
   }
 };
 
-// Delete a student by ID
 const deleteStudent = async (req, res) => {
   try {
 
     let studentId = req.params.id ; 
+
+    let removeMarksData = await db.Marks.destroy({where: {studentId}})
 
     let removeStudentData = await db.Students.destroy({
         where:{

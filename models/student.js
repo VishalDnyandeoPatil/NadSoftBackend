@@ -8,18 +8,20 @@ module.exports = (sequelize, Datatypes)=>{
         division: { type: Datatypes.STRING, defaultValue: "" },
         // marks: { type: Datatypes.STRING, defaultValue: "" },
     },
-    // {
-    //     tableName: 'Students',
-    //     timestamps: false
-    // }
+    {
+        tableName: 'Students',
+        timestamps: true
+    }
 );
 
-    // Student.associate = (models) => {
-    //     Student.hasMany(models.Marks, {
-    //         foreignKey: 'studentId',
-    //         as: 'marks'
-    //     });
-    // };
+    Student.associate = (models) => {
+        Student.hasMany(models.Marks, {
+            foreignKey: 'studentId',
+            as: 'marks',
+            onUpdate: 'CASCADE',
+            onDelete: 'CASCADE'
+        });
+    };
 
     return Student
 };
