@@ -7,5 +7,6 @@ studentRouter.get('/getAllStudents', studentController.getAllStudents);
 studentRouter.get('/getStudentById/:id', studentController.getStudentById);
 studentRouter.patch('/updateStudent/:id', studentController.updateStudent);
 studentRouter.delete('/removeStudent/:id', studentController.deleteStudent);
+studentRouter.delete('/removeMark/:id', studentController.deleteMark);
 
 module.exports = studentRouter;

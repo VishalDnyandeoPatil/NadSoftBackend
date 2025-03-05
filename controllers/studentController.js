@@ -13,7 +13,7 @@ const createStudent = async (req, res) => {
 
     if (marks && marks.length > 0) {
         const marksData = marks.map(mark => ({
-            studentId: student.id, // Utilizing the foreign key
+            studentId: student.id, 
             subject: mark.subject,
             score: mark.score
         }));
@@ -47,12 +47,6 @@ const getAllStudents = async (req, res) => {
     let page = parseInt(req.query.page) || 1;
     let recordsPerPage = parseInt(req.query.limit) || 10;
     let offset = (page-1)* recordsPerPage;
-
-    // const { rows, count } = await Student.findAndCountAll({
-    //   include: [{ model: Mark }],
-    //   limit: parseInt(limit),
-    //   offset: parseInt(offset),
-    // });
 
     let getAllStudentData = await db.Students.findAll({
             limit : recordsPerPage,
@@ -199,10 +193,31 @@ const deleteStudent = async (req, res) => {
   }
 };
 
+const deleteMark = async (req, res) => {
+  try {
+      const markId = req.params.id;
+      
+      const removeMarkData = await db.Marks.destroy({
+          where: { id: markId }
+      });
+
+      if (removeMarkData === 0) {
+          return res.status(404).json({ error: "Mark not found" });
+      }
+
+      return res.status(200).json({ message: "Mark deleted successfully" });
+
+  } catch (error) {
+      return res.status(500).json({ error: error.message });
+  }
+};
+
+
 module.exports={
     createStudent,
     getAllStudents,
     getStudentById,
     updateStudent,
-    deleteStudent
+    deleteStudent,
+    deleteMark
 }

@@ -4,8 +4,8 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.INTEGER,
             allowNull: false,
             references: {
-                model: 'Students', // Name of the target table
-                key: 'id' // Key in the target table
+                model: 'Students', 
+                key: 'id' 
             },
             onUpdate: 'CASCADE',
             onDelete: 'CASCADE'
